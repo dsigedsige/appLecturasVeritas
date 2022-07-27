@@ -1,0 +1,609 @@
+﻿ 
+@using DSIGE
+@using DSIGE.Modelo
+@using DSIGE.Negocio
+
+@{
+    ViewBag.Title = ".:: importar Cortes Reconexione  ::.";
+    Layout = "~/Views/Shared/_LayoutPrincipal.cshtml";
+}
+
+@section instances{
+
+    @Styles.Render("~/Content/dataTables-bootstrap/css/dataTables.bootstrap.min.css")
+    @Scripts.Render("~/Content/dataTables-bootstrap/js/jquery.dataTables.min.js")
+    @Scripts.Render("~/Content/dataTables-bootstrap/js/dataTables.bootstrap.min.js")
+
+    @Styles.Render("~/Content/bootstrap-datepicker/css/bootstrap-datepicker.min.css")
+    @Scripts.Render("~/Content/bootstrap-datepicker/js/bootstrap-datepicker.min.js")
+    @Scripts.Render("~/Content/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js")
+
+    @Scripts.Render("~/Content/bootstrap/js/bootstrap-filestyle.min.js")
+    @Scripts.Render("~/Scripts/jquery.fileDownload.js")
+    @Scripts.Render("~/Content/angular/angular.js")
+
+}
+
+@section styles{
+    <style type="text/css">
+        .nav-tabs {
+            border-bottom: 0;
+        }
+
+        #_archivo.btn-info {
+            background-image: none;
+            color: inherit;
+            background-color: inherit !important;
+        }
+
+        .modal-dialog {
+            width: 300px;
+        }
+
+        .datepicker {
+            width: 200px;
+        }
+
+        .form-control {
+            font-size: 11px;
+            width: 100%;
+            height: 28px;
+        }
+
+        input[type="text"] {
+            font-size: 11px;
+        }
+
+        body {
+            font-size: 10.5px;
+            font-family: tahoma;
+        }
+
+        .label-primary {
+            background-color: #337ab7;
+            font-size: 11px;
+        }
+
+        .label-danger {
+            background-color: red;
+            font-size: 11px;
+        }
+
+        .resaltado {
+            color: red;
+            text-decoration: underline;
+        }
+
+        .julio .table, th {
+            background-color: #333 !important;
+            color: white !important;
+        }
+
+        /*.input-group .form-control, .input-group-addon, .input-group-btn {
+            height: 40px !important;
+        }*/
+
+        .menuBoton, .ul .li {
+            list-style-type: none;
+            padding: 10px;
+            /*display: inline-table;*/
+            width: 200px !important;
+        }
+
+        .ui-pnotify-text {
+            display: block;
+            font-size: 13px !important;
+            font-weight: bold
+        }
+
+    </style>
+}
+
+@section scripts{
+
+    <script type="text/javascript">
+
+
+        function filterFloat(evt, input) {
+            // Backspace = 8, Enter = 13, ‘0′ = 48, ‘9′ = 57, ‘.’ = 46, ‘-’ = 43
+            var key = window.Event ? evt.which : evt.keyCode;
+
+
+            var chark = String.fromCharCode(key);
+            var tempValue = input.value + chark;
+            if (key >= 48 && key <= 58) {
+                if (filter(tempValue) === false) {
+                    return false;
+                } else {
+                    return true;
+                }
+            } else {
+                if (key == 8 || key == 13 || key == 0) {
+                    return true;
+                } else if (key == 46) {
+                    if (filter(tempValue) === false) {
+                        return false;
+                    } else {
+                        return true;
+                    }
+                } else {
+                    return false;
+                }
+            }
+        }
+        function filter(__val__) {
+            var preg = /^([0-9]+\:?[0-9]{0,2})$/;
+            if (preg.test(__val__) === true) {
+                return true;
+            } else {
+                return false;
+            }
+
+        }
+
+    </script>
+
+    <script type="text/javascript">
+
+        $(function () {
+            $('#id_fecha_asignacion').datepicker({
+                format: 'dd/mm/yyyy',
+                language: 'es',
+                autoclose: true
+            });
+            $('#fechaEnvioMovil').datepicker({
+                format: 'dd/mm/yyyy',
+                language: 'es',
+                autoclose: true
+            });
+            
+        });
+
+        var app = angular.module('MyApp', []).directive('onFinishRender', function ($timeout) {
+            return {
+                restrict: 'A',
+                link: function (scope, element, attr) {
+                    if (scope.$last === true) {
+                        $timeout(function () {
+                            scope.$emit('ngRepeatFinished');
+                        });
+                    }
+                }
+            }
+        }).directive('fileModel', ['$parse', function ($parse) {
+            return {
+                restrict: 'A',
+                link: function (scope, element, attrs) {
+                    var model = $parse(attrs.fileModel);
+                    var modelSetter = model.assign;
+
+                    element.bind('change', function () {
+                        scope.$apply(function () {
+                            modelSetter(scope, element[0].files[0]);
+                        });
+                    });
+                }
+            };
+        }]);
+
+        app.service('fileUpload', ['$http', function ($http) {
+            this.uploadFileToUrl = function (idlocal, file, uploadUrl) {
+
+                var fd = new FormData();
+                fd.append('file', file);
+                fd.append('idlocal', idlocal);
+                $http.post(uploadUrl, fd, {
+
+                    transformRequest: angular.identity,
+                    headers: { 'Content-Type': undefined }
+                })
+                .success(function (data) {
+
+                })
+                .error(function () {
+
+                });
+
+            }
+        }]);
+
+        app.controller('MyController', function ($scope, $timeout, $http, fileUpload) {
+            oTable = null;
+            $scope.servicios = "0"
+            $scope.opcionCarga = "0";
+
+            $scope.myFile;
+ 
+            ///Creando la Funcion
+            $scope.Obj_List_Servicios = [];
+            $scope.Listado_Servicios = function () {
+                var variables = {
+                    method: 'POST',
+                    url: 'ListadoServicios',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+                        $scope.Obj_List_Servicios = [];
+
+                        for (obj of data) {
+                            if ( obj._a == '3' || obj._a == '4') {
+                                $scope.Obj_List_Servicios.push(obj);
+                            }
+                        }
+                })
+
+                .error(function () {
+                    alert('Ocurrio un problema con la conexion, vuelva a intentar.')
+
+                });
+            }
+
+            $scope.Listado_Servicios();
+
+
+            $scope.Descargar_formato = function () {
+                if ($scope.servicios == 0 || $scope.servicios == '0' || $scope.servicios == '') {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione un Servicio',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                if ($scope.opcionCarga == 0 || $scope.opcionCarga == '0' || $scope.opcionCarga == '') {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione el Tipo Carga',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                if ($scope.opcionCarga == 1) {
+                    if ($scope.servicios == 3 || $scope.servicios == 4  ) {
+                        window.open("../formatos/FORMATO_CARGA_PROGRAMACION.xlsx");
+                    } 
+                }
+                if ($scope.opcionCarga == 2) {
+                    if ($scope.servicios == 3 || $scope.servicios == 4) {
+                        window.open("../formatos/FORMATO_MACRO_ORDENES.xlsx");
+                    }
+                }
+                if ($scope.opcionCarga == 3) {
+                    if ($scope.servicios == 3 || $scope.servicios == 4) {
+                        window.open("../formatos/FORMATO_MACRO_OPERACIONES.xlsx");
+                    }
+                }
+
+            }
+
+
+            $scope.cant_archivosCargados = 0;
+
+            $scope.subirArchivo = function () {
+
+                var idServicio = document.getElementById('id_servicio').value;
+                var idfechaAsignacion = document.getElementById('id_fecha_asignacion').value;
+                var cbo_opcion = document.getElementById('cbo_opcion').value;
+
+                var btn_Guardar = document.getElementById('btn_guardar');
+                var btn_ver = document.getElementById('btn_ver');
+ 
+ 
+                if (idServicio == "0") {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                if (idfechaAsignacion == '') {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione o ingrese una Fecha de Asignación. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+                if (cbo_opcion == '0' || cbo_opcion == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione el Tipo de Carga',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                if ($scope.myFile == null) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Archivo para cargarlo..',
+                        type: 'error'
+                    });
+                } else {
+ 
+                        $('.sige-load').show();
+                        var file = $scope.myFile;
+                        var uploadUrl = '@Url.Action("InsertaExcel_cortesReconexiones")';
+
+                        var fd = new FormData();
+                            fd.append('file', file);
+                            fd.append('idfechaAsignacion', idfechaAsignacion);
+                            fd.append('idServicio', idServicio);
+                            fd.append('idOpcion', cbo_opcion);
+
+                        $http.post(uploadUrl, fd,
+                        {
+                            transformRequest: angular.identity,
+                            headers: { 'Content-Type': undefined }
+                            }).success(function (res) {
+
+                             $('.sige-load').hide();
+
+                            if (res.ok) {
+
+                                btn_ver.disabled = true;
+                                btn_Guardar.disabled = false;
+                                $scope.cant_archivosCargados = res.data[0].cantidad;
+
+                            } else {
+                                $scope.cant_archivosCargados = 0;
+                                alert(JSON.stringify(res.data))
+                            }
+                        })
+                            .error(function () {
+                                $scope.cant_archivosCargados = 0;
+                            alert('Ocurrio un problema con la conexion, vuelva a intentar.')
+                            $('.sige-load').hide();
+                        });
+
+                }
+            };
+
+            $scope.abrirModal_Asignacion = function () {
+                const idServicio = document.getElementById('id_servicio').value;
+                const fechaAsignacion = document.getElementById('id_fecha_asignacion').value;
+
+                if (idServicio == '0') {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                if (fechaAsignacion == '') {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione o ingrese la Fecha Asignacion.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                $('#modal-asignacion').modal('show');
+            }
+
+            $scope.Guardar_informacionCorteReconexion = function () {
+
+                var cancel = document.getElementById('btn_cancel');
+                var btn_Guardar = document.getElementById('btn_guardar');
+
+                const idServicio = document.getElementById('id_servicio').value;
+                const fechaAsignacion = document.getElementById('id_fecha_asignacion').value;
+                const cbo_opcion = document.getElementById('cbo_opcion').value;
+
+                const fechaEnvioMovil = document.getElementById('fechaEnvioMovil').value;
+                 
+                if ($scope.cant_archivosCargados == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'No se cargo correctamente el archivo, intente nuevamente..',
+                        type: 'error'
+                    });
+                    return;
+                } 
+
+                if (fechaEnvioMovil == '') {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione o ingrese la Fecha Movil.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                (new PNotify({
+                    title: 'Sistemas Confirmación ',
+                    text: 'Desea guardar la informacion ?',
+                    icon: 'glyphicon glyphicon-question-sign',
+                    hide: false,
+                    confirm: {
+                        confirm: true
+                    },
+                    buttons: {
+                        closer: false,
+                        sticker: false
+                    },
+                    history: {
+                        history: false
+                    }
+                })).get().on('pnotify.confirm', function () {
+ 
+                    $('.sige-load').show();
+                    $http({
+                        method: 'POST',
+                        url: 'GrabarExcel_cortesReconexiones',
+                        params: {
+                            fechaEnvioMovil: fechaEnvioMovil,
+                            idServicio: idServicio,
+                            idOpcion: cbo_opcion,
+                            fechaAsignacion: fechaAsignacion,
+                        },
+                        headers: {
+                            'Content-Type': undefined
+                        }
+
+                    }).success(function (res) {
+
+                        $('.sige-load').hide();
+                        if (res.ok) {
+                            btn_Guardar.disabled = true;
+                            cancel.click();
+
+                            new PNotify({
+                                title: ' ',
+                                text: 'Se guardo la informacion correctamente..',
+                                type: 'success'
+                            });
+                        } else {
+                            alert(JSON.stringify(res.data))
+                        }
+
+                    }).error(function (error) {
+                        $('.sige-load').hide();
+                    });
+
+
+                }).on('pnotify.cancel', function () {
+                    $('.sige-load').hide();
+                });
+
+            }
+
+        });
+    </script>
+}
+
+<html>
+<head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+</head>
+
+<body>
+
+    <div ng-app="MyApp" ng-controller="MyController">
+        <div class="panel panel-oscuro "  >
+            <div class="panel-heading">
+                <h6><i class="fa fa-table fa-lg"></i> IMPORTAR ARCHIVOS CORTES - RECONEXIONES</h6>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-sm-4 col-md-3">
+                        <label for="_usuario" class="control-label">Servicio :</label>
+                        <br />
+                        <select class="form-control" id="id_servicio" ng-model="servicios">
+                            <option value="0" selected="selected"> [--SELECCIONE--]</option>
+                            <option ng-repeat="item in Obj_List_Servicios" value="{{item._a}}"> {{item._b}} </option>
+                        </select>
+                    </div>
+
+                    <div class="col-sm-4 col-md-3">
+                        <label for="_usuario" class=" control-label">Fecha de Asignacion:</label>
+                        <br />
+                        <input class="form-control julio" id="id_fecha_asignacion" placeholder="dia/mes/año" type="text" value="@DateTime.Now.ToString("dd/MM/yyyy")" />
+                    </div>
+
+                    <div class="col-sm-4 col-md-4">
+                        <label style="color:red" for="cbo_opcion" class="control-label">Tipo Carga </label>
+                        <select class="form-control" id="cbo_opcion" ng-model="opcionCarga" style="border: 1px solid red; font-size: 13px; font-weight: bold;">
+                            <option value="0" selected>  [--SELECCIONE--] </option>
+                            <option value="1"> CARGA DE PROGRAMACION </option>
+                            <option value="2"> MACRO DE ORDENES </option>
+                            <option value="3"> MACRO DE OPERACIONES </option>
+                        </select>
+                    </div>
+
+                </div>
+                <br />
+                <div class="row">
+
+                    <div class="col-sm-4 col-md-6">
+                        <input type="file" class="filestyle" style="height: 38px !important;" file-model="myFile" data-placeholder="Ningun Archivo Seleccionado" data-buttonname="btn-primary" data-size="sm" data-buttonbefore="true" data-buttontext="  Seleccionar Archivo..">
+                    </div>
+
+                    <div class="col-sm-8 col-md-6">
+                        <button button id="btn_ver" class="btn btn-primary " ng-click="subirArchivo()"><span class="glyphicon glyphicon-search"></span> ver</button>
+                        <button id="btn_nueva" style="margin-left: 5px" type="button" class="btn btn-success btn-sm" onclick="window.location.reload(true)"><span class="glyphicon glyphicon-plus"></span> Nuevo</button>
+                        <button class="btn btn-default btn-sm" ng-click="Descargar_formato();"><span class="glyphicon glyphicon-save"></span> Formato</button>
+                    </div>
+                </div>
+
+                <br />
+                <div class="row">
+                    <div class="col-lg-12">
+                        <fieldset class="fieldset-border">
+                            <legend>Leyenda </legend>
+                            <span class="label label-primary">La hoja de Excel tiene que tener por nombre "Importar".</span>
+                            <span class="label label-primary">El archivo a subir debe tener todos los bordes definidos.</span>
+                        </fieldset>
+                    </div>
+                </div>
+                <br />
+
+                <div class="row">
+                    <div class="col-lg-6">
+                        <ul class="list-group">
+                            <li class="list-group-item" style="font-weight: bold; background-color: cornsilk; border-bottom: 1px solid green; ">CANTIDAD ARCHIVOS CARGADOS <span class="badge"> {{cant_archivosCargados}}</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+
+
+                <div class="form-group">
+                    <div class="col-sm-12 text-center">
+                        <button id="btn_guardar" disabled="disabled" role="button" style="margin-left: 2px" class="btn btn-primary" ng-click="abrirModal_Asignacion();"><i class="fa fa-save fa-lg"></i> Guardar</button>
+                        @*<button id="btn_guardar" role="button" style="margin-left: 2px" class="btn btn-primary" ng-click="abrirModal_Asignacion();"><i class="fa fa-save fa-lg"></i> Guardar</button>*@
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-asignacion" class="modal fade" role="dialog" tabindex="-1" data-backdrop="static" data-keyboard="false">
+            <div class="modal-dialog" style="width: 300px !important">
+                <div class="panel panel-oscuro">
+                    <div class="panel-heading">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h5 class="modal-title"><i class="fa fa-calendar fa-lg"></i> Guardar Información </h5>
+                    </div>
+                    <div class="panel-body">
+                         <div class="row">
+                            <div class="col-md-12">
+                                <label for="fechaEnvioMovil" class="control-label">Fecha Envio Movil</label>
+                                <input class="form-control" id="fechaEnvioMovil" placeholder="dia/mes/año" type="text" value="@DateTime.Now.ToString("dd/MM/yyyy")" />
+                            </div>
+                        </div>
+ 
+                        <hr />
+                        <div class="panel-footer">
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Mantenimiento" style="float: right;">
+                                        <button role="button"   class="btn btn-primary" ng-click="Guardar_informacionCorteReconexion()"><i class="fa fa-save fa-lg"></i> Guardar</button>
+                                        <button id="btn_cancel" role="button" class="btn btn-default" data-dismiss="modal"><i class="fa fa-close fa-lg"></i> Cancelar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+</body>
+</html>
+
+
+
+
+

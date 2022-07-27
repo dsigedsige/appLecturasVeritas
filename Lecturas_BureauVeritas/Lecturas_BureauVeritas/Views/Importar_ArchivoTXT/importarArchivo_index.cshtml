@@ -1,0 +1,533 @@
+﻿@using DSIGE
+@using DSIGE.Modelo
+@using DSIGE.Negocio
+
+@{
+    ViewBag.Title = ".:: Importacion Archivo ::.";
+    Layout = "~/Views/Shared/_LayoutPrincipal.cshtml";
+}
+
+@section instances{
+
+
+    @Styles.Render("~/Content/dataTables-bootstrap/css/dataTables.bootstrap.min.css")
+    @Scripts.Render("~/Content/dataTables-bootstrap/js/jquery.dataTables.min.js")
+    @Scripts.Render("~/Content/dataTables-bootstrap/js/dataTables.bootstrap.min.js")
+
+    @Styles.Render("~/Content/bootstrap-datepicker/css/bootstrap-datepicker.min.css")
+    @Scripts.Render("~/Content/bootstrap-datepicker/js/bootstrap-datepicker.min.js")
+    @Scripts.Render("~/Content/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js")
+
+    @Scripts.Render("~/Content/bootstrap/js/bootstrap-filestyle.min.js")
+
+    @Scripts.Render("~/Scripts/jquery.fileDownload.js")
+    @Scripts.Render("~/Content/angular/angular.js")
+    @Scripts.Render("~/Content/AnglarUpload/angular-file-upload.min.js")
+
+
+    <style>
+
+        .panel-oscuro > .panel-heading {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Montserrat', sans-serif !important;
+            color: #999;
+        }
+
+        .form-control {
+            font-family: 'Montserrat', sans-serif !important;
+            font-size: 12px;
+        }
+
+        #mensajeCorrecto {
+            width: 30%;
+            height: 0px;
+            font-family: 'Montserrat', sans-serif !important;
+        }
+
+        #mensajeIncorrecto {
+            width: 30%;
+            height: 0px;
+            font-family: 'Montserrat', sans-serif !important;
+        }
+
+
+        #Marco {
+            padding-left: 5px;
+            padding-top: 15px;
+            margin: -10px;
+        }
+
+        .datepicker {
+            width: 200px;
+        }
+
+        .table-condensed > tbody > tr > td, .table-condensed > tbody > tr > th, .table-condensed > tfoot > tr > td, .table-condensed > tfoot > tr > th, .table-condensed > thead > tr > td, .table-condensed > thead > tr > th {
+            padding: 5px;
+            font-family: 'Montserrat', sans-serif !important;
+        }
+
+
+        .tableFixHead {
+            overflow-y: auto;
+            max-height: 350px;
+        }
+
+        .tableFixHead thead th {
+            position: sticky !important;
+            top: 0;
+        }
+
+        .table thead th {
+            background-color: #2196f3 !important;
+            color: white;
+            border-color: #B8AFAC;
+            z-index: 2000;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11px;
+        }
+
+        legend {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .table-bordered > tbody > tr > td {
+            border: 1px solid #ddd;
+            font-family: 'Montserrat', sans-serif !important;
+            font-size: 11px !important;
+        }
+
+        .modal {
+            z-index: 2000 !important;
+        }
+
+        .table > thead > tr > th {
+            color: #eee !important;
+        }
+
+        .table > tbody > tr > td {
+            border: 1px solid #ddd;
+            font-family: 'Montserrat', sans-serif !important;
+            font-size: 11px !important;
+        }
+
+        .tableFixHead .table tbody tr:hover td, .table tbody tr:hover th, .table tbody tr:hover th a {
+            background-color: #ddd !important;
+            color: black !important;
+        }
+    </style>
+
+
+    <script type="text/javascript">
+
+        var app = angular.module('myApp', []);
+        app.controller('MainCtrl', function ($scope, $http, $timeout, $q) {
+            $scope.name = 'World';
+            $scope.files = [];
+            $scope.checkedallR = true ;
+
+            $(function () {
+                $('#id_fecha_asignacion').datepicker({
+                    format: 'dd/mm/yyyy',
+                    language: 'es',
+                    autoclose: true
+                });
+            });
+
+            $scope.InicializandoVariables = function () {
+                $scope.id_tipoServicio = '0';
+                $scope.Listado_Servicios()
+                setTimeout(function () {
+                    var cbo_servicio = document.getElementById('id_servicio');
+                    cbo_servicio.value = '0';
+                }, 500);
+            }
+
+            $scope.Obj_List_Servicios = [];
+            $scope.Listado_Servicios = function () {
+                var variables = {
+                    method: 'POST',
+                    url: '../Importar_ArchivoTXT/ListandoServicios',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    }
+                }
+                $http(variables)
+                .success(function (data) {
+                    $scope.Obj_List_Servicios = [];
+                    $scope.Obj_List_Servicios = data;
+                })
+
+                .error(function () {
+                    alert('Ocurrio un problema con la conexion, vuelva a intentar.')
+
+                });
+            }
+
+            function Marcados() {
+                var estado = false;
+                for (var i = 0; i < $scope.files.length; i++) {
+                    if ($scope.files[i].flag_inserto == false) {
+                        if ($scope.files[i].color == false) {
+                            if ($scope.files[i].checkeado == true) {
+                                estado = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                return estado;
+            }
+
+            function MostrarOcultarBoton(name) {
+                for (var i = 0; i < $scope.files.length; i++) {
+                    if ($scope.files[i].name == name) {
+                        $scope.files[i].disabled = true
+                        $scope.files[i].color = true
+                        break;
+                    }
+                }
+            }
+
+
+            $scope.addIdChecked_All = function (checked) {
+                for (var i = 0; i < $scope.files.length; i++) {
+                    if ($scope.files[i].flag_inserto == false) {
+                        if ($scope.files[i].color == false) {
+                            $scope.files[i].checkeado = checked;
+                        }
+                    } else {
+                        $scope.files[i].checkeado = false;
+                    }
+                }
+            }
+
+
+
+            $scope.CargarArchivos = function () {
+
+                var fechaAsignacion = document.getElementById('id_fecha_asignacion').value;
+                var cboServicio = document.getElementById('id_servicio').value;
+
+                if (fechaAsignacion == '') {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor ingrese o seleccione una Fecha de Asignación.',
+                        type: 'danger'
+                    });
+                    return;
+                }
+
+                if (cboServicio == '0' || cboServicio == 0 || cboServicio == '') {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione el Tipo de Servicio.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                if ($scope.files.length == 0) {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor cargue un Archivo primero...',
+                        type: 'error'
+                    });
+                    return
+                }
+
+                if (Marcados() == false) {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor Marque al menos un item de la Tabla..',
+                        type: 'danger'
+                    });
+                    $('.sige-load').hide();
+                    return;
+                }
+
+                $scope.ArchivosMarcados = [];
+                $('.sige-load').show();
+
+                var variables = {
+                    method: 'POST',
+                    url: '../Importar_ArchivoTXT/VerificandoArchivos',
+
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        fechaAsignacion: fechaAsignacion,
+                        TipoServicio: cboServicio
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+
+                    angular.forEach(data, function (obj, key) {
+                        for (var i = 0; i < $scope.files.length; i++) {
+                            if ($scope.files[i].name == obj.nombre_ArchivoImportado) {
+                                $scope.files[i].flag_inserto = true;
+                                $scope.files[i].checkeado = false;
+                                $scope.files[i].disabled = true;
+                            }
+                        }
+                    });
+
+                    var arrayFinal = [];
+                    if (Marcados() == false) {
+                        new PNotify({
+                            title: 'Sistemas',
+                            text: 'Archivo ya Cargado anteriormente...',
+                            type: 'danger'
+                        });
+                        $('.sige-load').hide();
+                        return;
+                    }
+
+                    angular.forEach($scope.files, function (item) {
+                        if (item.flag_inserto == false) {
+                            if (item.color == false) {
+                                if (item.checkeado == true) {
+                                    $scope.ArchivosMarcados.push(item._file);
+                                }
+                            }
+                        }
+                    });
+
+                    var miPeticion = function (archivoTexto, fechaAsigna) {
+
+                        fechaAsigna = document.getElementById('id_fecha_asignacion').value;
+                        cboServicio = document.getElementById('id_servicio').value;
+
+                        var Result = {};
+                        var q = $q.defer();
+
+                        var file = archivoTexto;
+                        var uploadUrl = '../Importar_ArchivoTXT/guardarArchivoTexto';
+                        var fd = new FormData();
+                        fd.append('file', file);
+                        fd.append('fechaAsignacion', fechaAsigna);
+                        fd.append('TipoServicio', cboServicio);
+                        $http.post(uploadUrl, fd, {
+                            transformRequest: angular.identity,
+                            headers: { 'Content-Type': undefined }
+                        }).success(function (result) {
+                            q.resolve(result)
+                        })
+                        .error(function (err) {
+                            q.reject(err);
+                        })
+                         return q.promise;
+                    }
+
+                    var obtenerArchivoMatriz = function (indice) {
+                        var file;
+                        var i = 0;
+                        angular.forEach($scope.ArchivosMarcados, function (item) {
+                            if (i == indice) {
+                                file = item;
+                            }
+                            i++;
+                        });
+                        return file;
+                    }
+
+                    var enviarPeticiones = function (indice, fechaAsigna) {
+                        if (indice < $scope.ArchivosMarcados.length) {
+                            var file_data = obtenerArchivoMatriz(indice);
+
+                            miPeticion(file_data, fechaAsigna)
+                                .then(function (res) {
+                                    console.log(res);
+                                    if (res.ok == true) {
+                                        MostrarOcultarBoton(file_data.name)
+                                        enviarPeticiones(indice + 1);
+                                    } else {
+                                        alert(JSON.stringify(res.data))
+                                        MostrarOcultarBoton(file_data.name)
+                                        enviarPeticiones(indice + 1);
+                                    }
+                            }, function (error) {
+                                MostrarOcultarBoton(file_data.name)
+                                enviarPeticiones(indice + 1);
+                            })
+
+                        } else {
+
+                            $("#btnSubir").prop("disabled", true);
+
+                            new PNotify({
+                                title: 'Sistemas',
+                                text: 'Proceso de Carga Termino.',
+                                type: 'success'
+                            });
+                            $('.sige-load').hide();
+                        }
+                    }
+
+                    enviarPeticiones(0, fechaAsignacion);
+
+                })
+                .error(function () {
+                    alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                });
+
+            }
+
+
+
+        });
+
+        app.directive('ngFileModel', ['$parse', function ($parse, $scope) {
+            return {
+                restrict: 'A',
+                link: function (scope, element, attrs) {
+                    var model = $parse(attrs.ngFileModel);
+                    var isMultiple = attrs.multiple;
+                    var modelSetter = model.assign;
+                    var values = [];
+                    element.bind('change', function () {
+                        angular.forEach(element[0].files, function (item) {
+
+                            if (item.name.indexOf('.txt') != -1) {
+                                var value = {
+                                    checkeado: true,
+                                    disabled: false,
+                                    color: false,
+                                    flag_inserto:false,
+                                    name: item.name,
+                                    size: item.size,
+                                    type: item.type,
+                                    url: URL.createObjectURL(item),
+                                    _file: item
+                                };
+                                values.push(value);
+                            }
+
+                        });
+                        scope.$apply(function () {
+                            if (isMultiple) {
+                                modelSetter(scope, values);
+                            } else {
+                                modelSetter(scope, values[0]);
+                            }
+                        });
+                    });
+                }
+            };
+        }]);
+
+    </script>
+
+}
+
+<!DOCTYPE html>
+<html ng-app="myApp">
+<body ng-controller="MainCtrl" ng-init="InicializandoVariables();">
+    <div class="panel panel-oscuro">
+        <div class="panel-heading">
+            <h6><i class="fa fa-table fa-lg"></i> IMPORTAR ARCHIVOS DE TEXTO 2022</h6>
+        </div>
+        <div class="panel-body">
+
+            <div class="row">
+                <div class="col-sm-4 col-md-6">
+                    <label> Seleccione el Archivo Texto</label>
+                    <br />
+                    <input type="file" class="filestyle" accept=".txt" ng-file-model="files" multiple data-placeholder="Ningun Archivo Seleccionado" data-buttonname="btn-primary" data-size="sm" data-buttonbefore="true" data-buttontext="  Seleccionar Archivo..">
+                </div>
+                <div class="col-sm-5 col-md-4">
+
+                    <div class="col-sm-6 col-md-6">
+                        <label>Fecha Asignación </label>
+                        <br />
+                        <input class="form-control" id="id_fecha_asignacion" placeholder="dia/mes/año" type="text" value="@DateTime.Now.ToString("dd/MM/yyyy")" />
+                    </div>
+
+                    <div class="col-sm-6 col-md-6">
+                        <label for="id_servicio">Servicio</label>
+                        <br />
+                        <select id="id_servicio" class="form-control" ng-model="id_tipoServicio">
+                            <option value=0> [ SELECCIONE -- ]</option>
+                            <option ng-repeat="item in Obj_List_Servicios" value="{{item.id_TipoServicio}}">
+                                {{item.nombre_tiposervicio}}
+                            </option>
+                        </select>
+                    </div>
+
+                </div>
+                <div class="col-sm-3  col-md-2">
+                    <br />
+                    <button id="btnSubir" type="button" class="btn btn-success btn-sm" ng-click="CargarArchivos();"><span class="glyphicon glyphicon-upload"></span> Subir  </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="window.location.reload(true)"><i class="fa fa-file-excel-o"></i> Nuevo</button>
+                </div>
+            </div>
+            <br />
+            <div class="row">
+                <div class="col-xs-12 col-md-12">
+                    <fieldset class="fieldset-border">
+                        <legend> Leyenda </legend>
+                        <div id="Marco">
+                            <input id="mensajeCorrecto" type="text" ng-disabled="true" class="alert alert-success" value="Archivos cargados correctamente.." placeholder="Archivos cargados correctamente.." />
+                            <input id="mensajeIncorrecto" type="text" ng-disabled="true" class="alert alert-danger" value="Archivos cargados anteriormente..." placeholder="Archivos cargados anteriormente..." />
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+            <br />
+
+            <div class="row">
+                <div class="col-xs-12 col-md-6">
+                    <div class="tableFixHead">
+                        <table id="tblLista" class="table  table-bordered  ">
+                            <thead>
+                                <tr>
+                                    <th style="width:50px;">#</th>
+                                    <th style="width:50px;">
+                                        <div class="checkbox clip-check check-danger checkbox-inline">
+                                            <input type="checkbox" id="checkboxAll" value="1" ng-model="checkedallR" ng-click="addIdChecked_All(checkedallR)">
+                                            <label for="checkboxAll">
+
+                                            </label>
+                                        </div>
+                                    </th>
+                                    <th>NOMBRE DE ARCHIVO</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in files" ng-style="item.color === true && {'background-color':'#93d893'}  || item.flag_inserto===true && {'background-color':'red'} ||   item.color === false && {'background-color':'white'}">
+                                    <td>
+                                        {{$index + 1}}
+                                    </td>
+                                    <td>
+                                        <div class="checkbox clip-check check-primary checkbox-inline">
+                                            <input type="checkbox" id="checkbox{{$index}}" ng-disabled="item.disabled" value="1" ng-model="item.checkeado">
+                                            <label for="checkbox{{$index}}">
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td>{{item.name}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                    </div>
+
+                </div>
+            </div>
+
+
+
+        </div>
+    </div>
+
+
+</body>
+</html>
+
+

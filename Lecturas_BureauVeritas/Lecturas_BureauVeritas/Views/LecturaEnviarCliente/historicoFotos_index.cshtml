@@ -1,0 +1,671 @@
+﻿@{
+    ViewBag.Title = "historicoFotos_index";
+    Layout = "~/Views/Shared/_LayoutPrincipal.cshtml";
+}
+
+@using System.Configuration;
+@using DSIGE
+@using DSIGE.Modelo
+@using DSIGE.Negocio
+
+@{
+    ViewBag.Title = ".:: Visualizar Fotos de Cortes Y Reconexiones ::.";
+    Layout = "~/Views/Shared/_LayoutPrincipal.cshtml";
+}
+
+@section instances{
+    @Styles.Render("~/Content/bootstrap-table/bootstrap-table.css")
+    @Scripts.Render("~/Content/bootstrap-table/bootstrap-table.js")
+
+    @Scripts.Render("~/Content/bootstrap-table/locale/bootstrap-table-es-MX.js")
+    @Scripts.Render("~/Content/bootstrap/js/bootstrap-toggle.min.js")
+    @Styles.Render("~/Content/bootstrap/css/bootstrap-toggle.min.css")
+
+    @Styles.Render("~/Content/bootstrap-datepicker/css/bootstrap-datepicker.min.css")
+    @Scripts.Render("~/Content/bootstrap-datepicker/js/bootstrap-datepicker.min.js")
+    @Scripts.Render("~/Content/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js")
+
+    @Scripts.Render("~/Content/angular/angular.js")
+
+    @Scripts.Render("~/Content/bootstrap/js/bootstrap-filestyle.min.js")
+    @Scripts.Render("~/Scripts/jquery.fileDownload.js")
+
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,500,700" rel="stylesheet">
+
+
+}
+
+@section styles{
+    <style type="text/css">
+        .fixed-table-toolbar .search {
+            line-height: 0;
+        }
+
+ 
+
+        label {
+            font-family: 'Montserrat', sans-serif !important;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .form-control {
+            font-size: 11px;
+            font-family: 'Montserrat', sans-serif !important;
+            height: 35px;
+        }
+
+        .ui-pnotify-text {
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: bold;
+        }
+
+        button.btn.btn-warning.btn-sm {
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: bold
+        }
+
+        .nav-tabs {
+            border-bottom: 0;
+        }
+
+        #_archivo.btn-info {
+            background-image: none;
+            color: inherit;
+            background-color: inherit !important;
+        }
+
+        .modal-dialog {
+            width: 300px;
+        }
+
+        #modalLecturass {
+            width: 530px;
+        }
+
+        #modalcortess {
+            width: 530px;
+        }
+
+        #modalhistorico {
+            width: 500px;
+        }
+
+        #modalpendientes {
+            width: 500px;
+        }
+
+        .datepicker {
+            width: 200px;
+        }
+
+
+        #table-consulta_lec td {
+            color: black;
+        }
+
+        #table-consulta_reclec td {
+            color: black;
+        }
+
+        #Principal {
+            width: 98%;
+            height: 400px;
+        }
+
+        input[type=search] {
+            width: 300px !important;
+        }
+
+
+        [tooltip]:before {
+            /* needed - do not touch */
+            content: attr(tooltip);
+            position: absolute;
+            opacity: 0;
+            /* customizable */
+            transition: all 0.15s ease;
+            padding: 10px;
+            color: red;
+            border-radius: 10px;
+            box-shadow: 2px 2px 1px silver;
+            font-family: Tahoma
+        }
+
+        [tooltip]:hover:before {
+            /* needed - do not touch */
+            opacity: 1;
+            /* customizable */
+            background: beige;
+            margin-top: -50px;
+            margin-left: 20px;
+        }
+
+        [tooltip]:not([tooltip-persistent]):before {
+            pointer-events: none;
+        }
+
+        .check {
+            margin-top: -5px;
+            margin-bottom: -5px;
+        }
+
+        .Julio table, th {
+            background-color: #333 !important;
+            color: white !important;
+        }
+
+        [class^="icon-"], [class*=" icon-"] {
+            font-size: 15px;
+        }
+ 
+    </style>
+}
+
+@section scripts{
+
+
+    <script type="text/javascript">
+
+        var app = angular.module('appLecturaEnviarCliente', [])
+
+            .directive('fileModel', ['$parse', function ($parse) {
+
+                return {
+                    restrict: 'A',
+                    link: function (scope, element, attrs) {
+                        var model = $parse(attrs.fileModel);
+                        var modelSetter = model.assign;
+
+                        element.bind('change', function () {
+                            scope.$apply(function () {
+                                modelSetter(scope, element[0].files[0]);
+                            });
+                        });
+                    }
+                };
+            }])
+        app.service('fileUpload', ['$http', function ($http) {
+            this.uploadFileToUrl = function (idlocal, file, uploadUrl) {
+
+                var fd = new FormData();
+                fd.append('file', file);
+                fd.append('idlocal', idlocal);
+                $http.post(uploadUrl, fd, {
+                    transformRequest: angular.identity,
+                    headers: { 'Content-Type': undefined }
+                })
+                    .success(function (data) {
+
+                    })
+                    .error(function () {
+
+                    });
+            }
+        }]);
+        app.directive('onFinishRender', function ($timeout) {
+            return {
+                restrict: 'A',
+                link: function (scope, element, attr) {
+                    if (scope.$last === true) {
+                        $timeout(function () {
+                            scope.$emit(attr.onFinishRender);
+                        });
+                    }
+                }
+            }
+        });
+
+        app.controller('LecturaEnviarClienteCtrl', function ($scope, $http, $timeout, fileUpload) {
+
+            //inicializando fechas
+            $(function () {
+                $('#dtp_fechaAsigna_inicial').datepicker({
+                    format: 'dd/mm/yyyy',
+                    language: 'es',
+                    autoclose: true
+                });
+                $('#dtp_fechaAsigna_final').datepicker({
+                    format: 'dd/mm/yyyy',
+                    language: 'es',
+                    autoclose: true
+                });
+            })
+
+            $scope.inicializando = function () {
+                $scope.listando_Servicios();
+                $scope.listando_Estados();
+                setTimeout(function () {
+                    var cbo_servicio = document.getElementById('cbo_servicio');
+                    var cbo_estado = document.getElementById('cbo_estado');
+                    var txt_suministro = document.getElementById('txt_suministro');
+                    var txt_medidor = document.getElementById('txt_medidor');
+ 
+                    cbo_servicio.value = '0';
+                    cbo_estado.value = '0';
+                    txt_suministro.value = '';
+                    txt_medidor.value = '';
+                }, 0);
+            }
+
+
+            $scope.listando_Servicios = function () {
+                var variables = {
+                    method: 'POST',
+                    url: '../AsignaOrdenTrabajo/ListandoServicios',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+                        $scope.ListaServicios = data.filter((s) => (s.id_TipoServicio == 1 || s.id_TipoServicio == 2 || s.id_TipoServicio == 9));
+                    })
+                    .error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            };
+
+            $scope.listando_Estados = function () {
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/ListandoEstadosLectura',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    }
+                }
+
+                $http(variables)
+                    .success(function (data) {
+                        $scope.ListaEstados = data;
+                    })
+                    .error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            };
+
+
+            $scope.checkSuministros = false;
+            $scope.AbrirModal_suministroMasivo = function () {
+ 
+                const txt_suministro = document.getElementById('txt_suministro');
+                const servicios = document.getElementById('cbo_servicio').value;
+
+                if (servicios == "0") {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    $scope.checkSuministros = false;
+                    return;
+                }
+                if (servicios == "1" || servicios == "2" || servicios == "9") {
+                    if ($scope.checkSuministros == true) {
+                        $scope.nuevaimportacion_Suministro();
+                        $('#modal_suministro').modal({ show: 'false' });
+                        txt_suministro.value = '';
+                        txt_suministro.disabled = true;
+                    } else {
+                        txt_suministro.disabled = false;
+                        $scope.nuevaimportacion_Suministro();
+
+                    }
+                } else {
+                    $scope.checkSuministros = false;
+                }
+            }
+
+            $scope.Lista_agrupadoSuministro = [];
+            $scope.cerrarModalSuministros = function () {
+                const txt_suministro = document.getElementById('txt_suministro');
+                if ($scope.Lista_agrupadoSuministro.length == 0) {
+                    $scope.checkSuministros = false;
+                    txt_suministro.disabled = false;
+                }
+                $("#modal_suministro").modal('hide');
+            }
+
+            $scope.nuevaimportacion_Suministro = function () {
+                $(":file").filestyle('clear');
+                $('#btn_verSum').attr('disabled', false);
+                $scope.Lista_agrupadoSuministro = [];
+            }
+
+            $scope.formatos = () => {
+                window.open('../formatos/FORMATO_SUMINISTRO.xlsx', '_blank')
+            }
+
+            $scope.uploadFile_suministro = function () {
+                var idServicio = document.getElementById('cbo_servicio').value;
+
+                if ($scope.file == null) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Ningun Archivo Seleccionado..',
+                        type: 'error'
+                    });
+                }
+                else {
+                    $('#btn_verSum').attr('disabled', true);
+
+                    $('.sige-load').show();
+                    var file = $scope.file;
+                    var uploadUrl = '../Importar_Excel/InsertaExcel_suministroMasivo';
+                    var fd = new FormData();
+                    fd.append('file', file);
+                    fd.append('idlocal', 1);
+                    fd.append('idServicio', idServicio);
+
+                    $http.post(uploadUrl, fd,
+                        {
+                            transformRequest: angular.identity,
+                            headers: { 'Content-Type': undefined }
+                        }).success(function (res) {
+                            $('.sige-load').hide();
+
+                            if (res.ok == true) {
+                                $scope.Lista_agrupadoSuministro = res.data;
+                                new PNotify({
+                                    title: ' ',
+                                    text: 'Se cargo correctamente el listado de suministros.',
+                                    type: 'success'
+                                });
+
+                            } else {
+                                alert(res.data);
+                            }
+                        })
+                        .error(function () {
+                            alert('Ocurrio un problema con la conexion, vuelva a intentar.')
+                            $('.sige-load').hide();
+                        });
+                }
+            };
+
+            function ValidacionesGenerales() {
+
+                var cbo_servicio = document.getElementById('cbo_servicio');
+                var cbo_estado = document.getElementById('cbo_estado');
+                const dtp_fechaAsigna_inicial = document.getElementById('dtp_fechaAsigna_inicial');
+                const dtp_fechaAsigna_final = document.getElementById('dtp_fechaAsigna_final');
+                const txt_suministro = document.getElementById('txt_suministro');
+                const txt_medidor = document.getElementById('txt_medidor');
+
+                const flagSuministroMasivo = ($scope.checkSuministros) ? 1 : 0;
+ 
+                if (cbo_servicio.value == '0' || cbo_servicio.value == "0") {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return false;
+                }
+
+                if (cbo_estado.value == '0' || cbo_estado.value == "0") {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione un Estado. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return false;
+                }
+
+                if (dtp_fechaAsigna_inicial.value == '' || dtp_fechaAsigna_inicial.value == null ) {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione la fecha Inicial. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return false;
+                }
+                if (dtp_fechaAsigna_final.value == '' || dtp_fechaAsigna_final.value == null) {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione la fecha Final. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return false;
+                }
+
+                if (flagSuministroMasivo == 0 || flagSuministroMasivo == '0') {
+                    if (txt_medidor.value == '' || txt_medidor.value == null) {
+                        if (txt_suministro.value == '' || txt_suministro.value == null) {
+                            new PNotify({
+                                title: 'Sistemas',
+                                text: 'Por favor ingrese el numero de suministro. Muchas gracias.',
+                                type: 'error'
+                            });
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+
+            $scope.DescargarArchivos = function () {
+
+                if (ValidacionesGenerales() == false) {
+                    return;
+                }
+
+                const cbo_servicio = document.getElementById('cbo_servicio').value;
+                const cbo_estado = document.getElementById('cbo_estado').value;
+
+                const dtp_fechaAsigna_inicial = document.getElementById('dtp_fechaAsigna_inicial').value;
+                const dtp_fechaAsigna_final = document.getElementById('dtp_fechaAsigna_final').value;
+
+                const flagSuministroMasivo = ($scope.checkSuministros) ? 1 : 0;
+
+                const txt_suministro = document.getElementById('txt_suministro').value;
+                const txt_medidor = document.getElementById('txt_medidor').value;
+
+                if (cbo_servicio == "0") {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                $('.sige-load').show();
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/historicoFotosDescargar',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        servicio: cbo_servicio,
+                        estado: cbo_estado,
+                        fechaInicial: dtp_fechaAsigna_inicial,
+                        fechaFinal: dtp_fechaAsigna_final,
+                        flagSuministroMasivo: flagSuministroMasivo,
+                        suministro: txt_suministro,
+                        medidor: txt_medidor,
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+                        $('.sige-load').hide();
+                        var res = data.split("|");
+                        if (res[0].replace(/["]/gi, '') == "0" || res[0].replace(/["]/gi, '') == 0) {
+                            alert(res[1]);
+                        }else {
+                            var url = res[1].replace(/["]/gi, '');
+                            window.open(url);
+                        }
+                    }).error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            }
+
+        })
+
+    </script>
+}
+
+<div ng-app="appLecturaEnviarCliente" ng-controller="LecturaEnviarClienteCtrl" ng-init="inicializando()">
+
+    <div class="panel panel-oscuro" style="margin-top: -14px;">
+        <div class="panel-heading">
+            <h6><i class="fa fa-table fa-lg"></i> HISTORICO DE FOTOS </h6>
+        </div>
+        <div class="panel-body">
+
+            <div class="row">
+                <div class="col-sm-3 col-md-3">
+                </div>
+
+                <div class="col-sm-6 col-md-6">
+
+                    <div class="well" style="background: #314b75; color: white;    margin-bottom: 1px;">
+                        <div class="row">
+                            <div class="col-md-12 ">
+                                <div class="form-group">
+                                    <label class="control-label"> Servicios </label>
+                                    <br />
+                                    <select id="cbo_servicio" class="form-control">
+                                        <option value=0>--[ SELECCIONE ]-- </option>
+                                        <option ng-repeat="item in ListaServicios" value="{{item.id_TipoServicio}}">
+                                            {{item.nombre_tiposervicio}}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label class="control-label"> Estados </label>
+                                    <br />
+                                    <select id="cbo_estado" class="form-control">
+                                        <option value=0>--[ SELECCIONE ]-- </option>
+                                        <option ng-repeat="item in ListaEstados" value="{{item.id_Estado}}">
+                                            {{item.descripcion_estado}}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 ">
+                                <label class="control-label"> Rango de Asignacion </label>
+                                <div class="input-group">
+                                    <input class="form-control" id="dtp_fechaAsigna_inicial" placeholder="dia/mes/año" type="text" value="@DateTime.Now.ToString("dd/MM/yyyy")" />
+                                    <span class="input-group-addon">-</span>
+                                    <input class="form-control" id="dtp_fechaAsigna_final" placeholder="dia/mes/año" type="text" value="@DateTime.Now.ToString("dd/MM/yyyy")" />
+                                </div> 
+                            </div>
+                            <a id="id_link" href="" download style="display:none">link</a>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class=" col-md-12 ">
+                                <div class="form-group" style="margin-bottom: 0px;">
+                                    <label class="control-label"> Suministro </label>
+                                    <input type="checkbox" id="chk_masivo" style="margin-top: 2px; margin-left: 2px;" value="1" ng-model="checkSuministros" ng-click="AbrirModal_suministroMasivo()">
+                                    <label style="color:red" for="chk_masivo">Masivo</label>
+                                </div>
+                                <div class="form-group">
+                                    <input id="txt_suministro" class="form-control" type="text" placeholder="Ingresar Suministro">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class=" col-md-12 ">
+                                <div class="form-group">
+                                    <label class="control-label">  Medidor  </label>
+                                    <br />
+                                    <input id="txt_medidor" class="form-control" type="text" placeholder="Ingresar medidor" maxlength="30">
+                                </div>
+                            </div>
+                        </div>
+                        <br />
+                        <div class="row">
+                            <div class="col-md-12 text-center ">
+                                <button role="button" class="btn btn-warning btn-sm" ng-click="DescargarArchivos();"><i class="fa fa-camera fa-lg"></i> Descargar Fotos</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-sm-3 col-md-3">
+
+                </div>
+            </div>
+
+
+            <br />
+            <br />
+            <br />
+
+        </div>
+    </div>
+
+    <div id="modal_suministro" class="modal fade" role="dialog" tabindex="-1" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog  modal_dsige " style="width:500px;">
+            <div class="panel panel-oscuro">
+                <div class="panel-heading">
+                    <h6 class="modal-title"><i class="fa fa-cloud-upload"></i> Importar Suministros</h6>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+                            <form>
+                                <input id="id_fileSum" type="file" class="filestyle" file-model="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" data-placeholder="Ningun Archivo Seleccionado" data-buttonname="btn-primary" data-size="sm" data-buttonbefore="true" data-buttontext="  Seleccionar Archivo..">
+                            </form>
+                        </div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12  col-lg-12 " style="text-align:center">
+                            <button id="btn_verSum" type="button" class="btn btn-primary btn-sm" ng-click="uploadFile_suministro()"><i class="fa fa-upload"></i> Subir</button>
+                            <button id="btn_nuevaSum" type="button" class="btn btn-primary btn-sm" ng-click="nuevaimportacion_Suministro();"><i class="fa fa-file-excel-o"></i> Nueva Importacion</button>
+                            <button id="btnFomato" type="button" class="btn btn-success btn-sm" ng-click="formatos();"><i class="fa fa-file-excel-o"></i> Formato</button>
+                        </div>
+                    </div>
+                    <hr style="margin-top: 5px; " />
+
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12 col-lg-12">
+                            <div class="form-group">
+                                <table id="tbl_alertas" class="table table-condensed table-bordered table-responsive" cellspacing="0" style="font-family: tahoma;margin-bottom: 0px; font-size: 10px;">
+                                    <thead style="background:#F0F3F5;">
+                                        <tr>
+                                            <th>#</th>
+                                            <th style="text-align:center">CANTIDAD DE SUMINISTROS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="font-family: tahoma; font-size: 9px;">
+                                        <tr ng-repeat="lista in Lista_agrupadoSuministro">
+                                            <td>{{$index + 1}}</td>
+                                            <td class="text-right">{{lista.cantidad}}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-footer">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Mantenimiento" style="float: right;">
+                                <button id="btn_cancel" role="button" class="btn btn-default" ng-click="cerrarModalSuministros()"><i class="fa fa-close fa-lg"></i> Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+</div>

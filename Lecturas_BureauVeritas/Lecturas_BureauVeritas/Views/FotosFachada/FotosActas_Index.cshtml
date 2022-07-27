@@ -1,0 +1,824 @@
+﻿
+
+@{
+    ViewBag.Title = "Fotos Actas Index";
+    Layout = "~/Views/Shared/_LayoutPrincipal.cshtml";
+}
+
+@using System.Configuration;
+@using DSIGE
+@using DSIGE.Modelo
+@using DSIGE.Negocio
+
+@{
+    ViewBag.Title = "Fotos Actas";
+    Layout = "~/Views/Shared/_LayoutPrincipal.cshtml";
+}
+
+@section instances{
+    @Styles.Render("~/Content/bootstrap-table/bootstrap-table.css")
+    @Scripts.Render("~/Content/bootstrap-table/bootstrap-table.js")
+
+    @Scripts.Render("~/Content/bootstrap-table/locale/bootstrap-table-es-MX.js")
+    @Scripts.Render("~/Content/bootstrap/js/bootstrap-toggle.min.js")
+    @Styles.Render("~/Content/bootstrap/css/bootstrap-toggle.min.css")
+
+    @Styles.Render("~/Content/bootstrap-datepicker/css/bootstrap-datepicker.min.css")
+    @Scripts.Render("~/Content/bootstrap-datepicker/js/bootstrap-datepicker.min.js")
+    @Scripts.Render("~/Content/bootstrap-datepicker/locales/bootstrap-datepicker.es.min.js")
+
+    @Scripts.Render("~/Content/angular/angular.js")
+
+    @Scripts.Render("~/Content/bootstrap/js/bootstrap-filestyle.min.js")
+    @Scripts.Render("~/Scripts/jquery.fileDownload.js")
+
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,500,700" rel="stylesheet">
+
+}
+
+@section styles{
+    <style type="text/css">
+        .fixed-table-toolbar .search {
+            line-height: 0;
+        }
+
+        label {
+            font-family: 'Montserrat', sans-serif !important;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .form-control {
+            font-size: 11px;
+            font-family: 'Montserrat', sans-serif !important;
+            height: 35px;
+        }
+
+        .ui-pnotify-text {
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: bold;
+        }
+
+        button.btn.btn-warning.btn-sm {
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: bold
+        }
+
+        button.btn.btn-success.btn-sm {
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: bold
+        }
+
+
+        .nav-tabs {
+            border-bottom: 0;
+        }
+
+        #_archivo.btn-info {
+            background-image: none;
+            color: inherit;
+            background-color: inherit !important;
+        }
+
+        .modal-dialog {
+            width: 300px;
+        }
+
+        #modalLecturass {
+            width: 530px;
+        }
+
+        #modalcortess {
+            width: 530px;
+        }
+
+        #modalhistorico {
+            width: 500px;
+        }
+
+        #modalpendientes {
+            width: 500px;
+        }
+
+        .datepicker {
+            width: 200px;
+        }
+
+
+        #table-consulta_lec td {
+            color: black;
+        }
+
+        #table-consulta_reclec td {
+            color: black;
+        }
+
+        #Principal {
+            width: 98%;
+            height: 400px;
+        }
+
+        input[type=search] {
+            width: 300px !important;
+        }
+
+
+        [tooltip]:before {
+            /* needed - do not touch */
+            content: attr(tooltip);
+            position: absolute;
+            opacity: 0;
+            /* customizable */
+            transition: all 0.15s ease;
+            padding: 10px;
+            color: red;
+            border-radius: 10px;
+            box-shadow: 2px 2px 1px silver;
+            font-family: Tahoma
+        }
+
+        [tooltip]:hover:before {
+            /* needed - do not touch */
+            opacity: 1;
+            /* customizable */
+            background: beige;
+            margin-top: -50px;
+            margin-left: 20px;
+        }
+
+        [tooltip]:not([tooltip-persistent]):before {
+            pointer-events: none;
+        }
+
+        .check {
+            margin-top: -5px;
+            margin-bottom: -5px;
+        }
+
+        .Julio table, th {
+            background-color: #333 !important;
+            color: white !important;
+        }
+
+        [class^="icon-"], [class*=" icon-"] {
+            font-size: 15px;
+        }
+
+        .tableFixHead {
+            overflow-y: auto;
+            max-height: 600px;
+        }
+
+            .tableFixHead thead th {
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+            }
+
+        .table > tbody > tr > td {
+            font-family: 'Montserrat', sans-serif !important;
+        }
+
+        .table > thead > tr > th {
+            font-family: 'Montserrat', sans-serif !important;
+        }
+
+        .thumbnails img {
+            width: 95% !important;
+            height: 170px;
+        }
+
+        .list-group-item {
+            font-size: 10px;
+            padding: 2px 0px;
+            color: #314b75;
+        }
+
+        .list-group {
+            margin-bottom: 0px;
+        }
+    </style>
+}
+
+@section scripts{
+
+
+    <script type="text/javascript">
+
+        var app = angular.module('appFotosActas', [])
+
+            .directive('fileModel', ['$parse', function ($parse) {
+
+                return {
+                    restrict: 'A',
+                    link: function (scope, element, attrs) {
+                        var model = $parse(attrs.fileModel);
+                        var modelSetter = model.assign;
+
+                        element.bind('change', function () {
+                            scope.$apply(function () {
+                                modelSetter(scope, element[0].files[0]);
+                            });
+                        });
+                    }
+                };
+            }])
+        app.service('fileUpload', ['$http', function ($http) {
+            this.uploadFileToUrl = function (idlocal, file, uploadUrl) {
+
+                var fd = new FormData();
+                fd.append('file', file);
+                fd.append('idlocal', idlocal);
+                $http.post(uploadUrl, fd, {
+                    transformRequest: angular.identity,
+                    headers: { 'Content-Type': undefined }
+                })
+                    .success(function (data) {
+
+                    })
+                    .error(function () {
+
+                    });
+            }
+        }]);
+        app.directive('onFinishRender', function ($timeout) {
+            return {
+                restrict: 'A',
+                link: function (scope, element, attr) {
+                    if (scope.$last === true) {
+                        $timeout(function () {
+                            scope.$emit(attr.onFinishRender);
+                        });
+                    }
+                }
+            }
+        });
+
+        app.controller('fotosActasCtrl', function ($scope, $http, $timeout, fileUpload) {
+
+            //inicializando fechas
+            $(function () {
+                $('#dtp_fecha').datepicker({
+                    format: 'dd/mm/yyyy',
+                    language: 'es',
+                    autoclose: true
+                });
+
+                setTimeout(function () {
+                    $(".select2").select2();
+                }, 0);
+            })
+
+            $scope.inicializando = function () {
+                $scope.listando_Servicios();
+                $scope.listando_Estados();
+                $scope.ListandoOperarios();
+
+                setTimeout(function () {
+                    var cbo_servicio = document.getElementById('cbo_servicio');
+                    var cbo_estado = document.getElementById('cbo_estado');
+                    var cbo_operario = document.getElementById('cbo_operario');
+
+                    cbo_servicio.value = '0';
+                    cbo_estado.value = '0';
+                    cbo_operario.value = '0';
+                }, 0);
+            }
+
+            $scope.fotosActas = [];
+
+            $scope.listando_Servicios = function () {
+                var variables = {
+                    method: 'POST',
+                    url: '../AsignaOrdenTrabajo/ListandoServicios',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+ 
+                        $scope.ListaServicios = data.filter((s) => (s.id_TipoServicio == 3 || s.id_TipoServicio == 4  ));
+                    })
+                    .error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            };
+
+            $scope.listando_Estados = function () {
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/ListandoEstadosLectura',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    }
+                }
+
+                $http(variables)
+                    .success(function (data) {
+                        $scope.ListaEstados = data;
+                    })
+                    .error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            };
+
+            $scope.ListandoOperarios = function () {
+                var variables = {
+                    method: 'POST',
+                    url: '../EventoMovilOperario/ListandoOperarioLocales',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        id_local: 1
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+                        $scope.ListadeOperario = data;
+                    })
+                    .error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            };
+
+            $scope.checkedAll = false;
+            $scope.mostrarInformacion = function () {
+
+                const idServicio = document.getElementById('cbo_servicio').value;
+                const idEstado = document.getElementById('cbo_estado').value;
+                const fechaAsignacion = document.getElementById('dtp_fecha').value;
+                const idOperario = document.getElementById('cbo_operario').value;
+
+
+                if (idServicio == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+                if (idEstado == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Estado. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/mostrarInformacion_fotosActas',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        idServicio: idServicio,
+                        idEstado: idEstado,
+                        fechaAsignacion: fechaAsignacion,
+                        idOperario: idOperario,
+                    }
+                }
+
+                $scope.checkedAll = false;
+                $('.sige-load').show();
+                $http(variables)
+                    .success(function (res) {
+                        $('.sige-load').hide();
+
+                        if (res.ok == true) {
+                            $scope.fotosActas = res.data;
+                        } else {
+                            alert(JSON.stringify(res.data));
+                        }
+
+                    })
+                    .error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            };
+
+            $scope.checkedAllFotos= function (checked) {
+                if (checked) {
+                    angular.forEach($scope.fotosActas, function (child) {
+                            child.checkeado = true;
+                    })
+                } else {
+                    angular.forEach($scope.fotosActas, function (child) {
+                        child.checkeado = false;
+                    })
+                }
+            }
+
+            $scope.actualizarUbicacionMedidor = function (obj) {
+
+                if (obj.ubicacionMedidor == '' || obj.ubicacionMedidor == '0') {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione la ubicacion del Medidor. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/fotosFachada_actualizandoUbicacionMedidor',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        id_Lectura: obj.id_Lectura,
+                        ubicacionMedidor: obj.ubicacionMedidor,
+                    }
+                }
+                console.log(variables)
+
+                $('.sige-load').show();
+                $http(variables)
+                    .success(function (res) {
+                        $('.sige-load').hide();
+
+                        if (res.ok == true) {
+                            new PNotify({
+                                title: ' ',
+                                text: 'Se actualizo correctamente..',
+                                type: 'error'
+                            });
+                            return;
+                        } else {
+                            alert(JSON.stringify(res.data));
+                        }
+
+                    })
+                    .error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+
+
+            }
+
+            $scope.DescargarTodosFotos = function () {
+
+                const idServicio = document.getElementById('cbo_servicio').value;
+                const idEstado = document.getElementById('cbo_estado').value;
+                const fechaAsignacion = document.getElementById('dtp_fecha').value;
+                const idOperario = document.getElementById('cbo_operario').value;
+
+                if (idServicio == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+                if (idEstado == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Estado. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+                $('.sige-load').show();
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/fotosActas_descargarTodosFotos',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        idServicio: idServicio,
+                        idEstado: idEstado,
+                        fechaAsignacion: fechaAsignacion,
+                        idOperario: idOperario
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+                        $('.sige-load').hide();
+                        var res = data.split("|");
+                        if (res[0].replace(/["]/gi, '') == "0" || res[0].replace(/["]/gi, '') == 0) {
+                            alert(res[1]);
+                        }else {
+                            var url = res[1].replace(/["]/gi, '');
+                            window.open(url);
+                        }
+                    }).error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            }
+
+            $scope.DescargarTodosExcel = function () {
+
+                const idServicio = document.getElementById('cbo_servicio').value;
+                const idEstado = document.getElementById('cbo_estado').value;
+                const fechaAsignacion = document.getElementById('dtp_fecha').value;
+                const idOperario = document.getElementById('cbo_operario').value;
+
+                if (idServicio == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Servicio. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+                if (idEstado == 0) {
+                    new PNotify({
+                        title: ' ',
+                        text: 'Por favor seleccione un Estado. Muchas gracias.',
+                        type: 'error'
+                    });
+                    return;
+                }
+                $('.sige-load').show();
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/fotosActas_descargarTodosExcel',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        idServicio: idServicio,
+                        idEstado: idEstado,
+                        fechaAsignacion: fechaAsignacion,
+                        idOperario: idOperario
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+                        $('.sige-load').hide();
+                        var res = data.split("|");
+                        if (res[0].replace(/["]/gi, '') == "0" || res[0].replace(/["]/gi, '') == 0) {
+                            alert(res[1]);
+                        } else {
+                            var url = res[1].replace(/["]/gi, '');
+                            window.open(url);
+                        }
+                    }).error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            }
+
+
+
+
+
+            $scope.DescargarFotos = function () {
+
+                const idServicio = document.getElementById('cbo_servicio').value;
+                const idEstado = document.getElementById('cbo_estado').value;
+                const fechaAsignacion = document.getElementById('dtp_fecha').value;
+                const idOperario = document.getElementById('cbo_operario').value;
+
+                var flag_marco = false;
+                var List_codigos = [];
+
+                flag_marco = MarcoCheck();
+                if (flag_marco == false) {
+                    new PNotify({
+                        title: 'Sistemas',
+                        text: 'Por favor seleccione al menos un registro.',
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                List_codigos = ListaMarcoCheck();
+                console.log(List_codigos)
+                return;
+
+                $('.sige-load').show();
+                var variables = {
+                    method: 'POST',
+                    url: '../LecturaEnviarCliente/fotosFachada_descargarFotos',
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8'
+                    },
+                    data: {
+                        idServicio: idServicio,
+                        idEstado: idEstado,
+                        fechaAsignacion: fechaAsignacion,
+                        idOperario: idOperario,
+                        listadoIDlecturas: List_codigos
+                    }
+                }
+                $http(variables)
+                    .success(function (data) {
+                        $('.sige-load').hide();
+                        var res = data.split("|");
+                        if (res[0].replace(/["]/gi, '') == "0" || res[0].replace(/["]/gi, '') == 0) {
+                            alert(res[1]);
+                        } else {
+                            var url = res[1].replace(/["]/gi, '');
+                            window.open(url);
+                        }
+                    }).error(function () {
+                        alert('Lo sentimos, Ocurrio un problema, vuelva a intentar.')
+                    });
+            }
+
+            function MarcoCheck() {
+                var flag_marco = false;
+                for (var i = 0; i < $scope.fotosActas.length; i++) {
+                    if ($scope.fotosActas[i].checkeado == true) {
+                        flag_marco = true;
+                        break;
+                    }
+                }
+                return flag_marco;
+            }
+
+            function ListaMarcoCheck() {
+                var List_id = [];
+                for (var i = 0; i < $scope.fotosActas.length; i++) {
+                    if ($scope.fotosActas[i].checkeado == true) {
+                        List_id.push($scope.fotosActas[i].id_Lectura)
+                    }
+                }
+                return List_id;
+            }
+
+
+
+
+        })
+
+    </script>
+}
+
+<div ng-app="appFotosActas" ng-controller="fotosActasCtrl" ng-init="inicializando()">
+
+    <div class="panel panel-oscuro" style="margin-top: -14px;">
+        <div class="panel-heading">
+            <h6><i class="fa fa-table fa-lg"></i> REGISTRO DE FOTO ACTAS </h6>
+        </div>
+        <div class="panel-body">
+
+            <div class="well" style="background: #314b75; color: white;    margin-bottom: 1px;">
+                <div class="row">
+                    <div class="col-sm-6 col-md-3 ">
+                        <div class="form-group">
+                            <label class="control-label"> Servicios </label>
+                            <br />
+                            <select id="cbo_servicio" class="form-control">
+                                <option value=0>--[ SELECCIONE ]-- </option>
+                                <option ng-repeat="item in ListaServicios" value="{{item.id_TipoServicio}}">
+                                    {{item.nombre_tiposervicio}}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3 ">
+                        <div class="form-group">
+                            <label class="control-label"> Estados </label>
+                            <br />
+                            <select id="cbo_estado" class="form-control">
+                                <option value=0>--[ SELECCIONE ]-- </option>
+                                <option ng-repeat="item in ListaEstados" value="{{item.id_Estado}}">
+                                    {{item.descripcion_estado}}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3 ">
+                        <label class="control-label"> Fecha Asignacion </label>
+                        <input class="form-control" id="dtp_fecha" placeholder="dia/mes/año" type="text" value="@DateTime.Now.ToString("dd/MM/yyyy")" />
+                    </div>
+                    <div class="col-sm-6 col-md-3 ">
+                        <div class="form-group">
+                            <label for="cbo_operario" class="control-label">Operario</label>
+                            <br />
+                            <select class="select2" id="cbo_operario" style="width: 98%">
+                                <option value=0>--[ TODOS ]-- </option>
+                                <option ng-repeat="item in ListadeOperario" value={{item.id_Operario}}>{{item.Nombre_Operario}}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top: -5px;">
+                    <div class="col-md-12 text-center ">
+                        <button role="button" class="btn btn-primary btn-sm" ng-click="mostrarInformacion()"><i class="fa fa-refresh fa-lg"></i> Mostrar </button>
+                        <button role="button" class="btn btn-warning btn-sm" ng-click="DescargarTodosFotos();"><i class="fa fa-camera fa-lg"></i> Descargar Fotos</button>
+                        <button role="button" class="btn btn-success btn-sm" ng-click="DescargarTodosExcel();"><i class="fa fa-camera fa-lg"></i> Descargar Excel</button>
+                    </div>
+                </div>
+                <br />
+                <br />
+
+            </div>
+
+            <a id="id_link" href="" download style="display:none">link</a>
+             
+
+            <div id="galeria" class="table table-responsive">
+                <div class="thumbnails" ng-if="fotosActas.length > 0">
+                    <div class="col-xs-6 col-sm-3 col-md-2 col-lg-2" style=" text-align: center;margin-top: 2px;" ng-repeat="pic in fotosActas">
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                                <label class="control-label"> Suminstro : {{pic.cuentaContrato}} </label>
+                            </li>
+                            <li class="list-group-item">
+                                <label class="control-label"> Medidor : {{pic.medidor}} </label>
+                            </li>
+                            <li class="list-group-item">
+                                <label class="control-label">  Nota Lectura :  {{pic.notaLectura}}</label>
+                            </li>
+                            @*<li class="list-group-item">
+                                <div style="padding: 5px; background-color: beige;">
+                                    <label class="control-label">   Ubicación del  Medidor </label>
+                                    <br />
+                                    <select id="cbo_servicio" class="form-control" ng-model="pic.ubicacionMedidor">
+                                        <option value=0>--[ SELECCIONE ]-- </option>
+                                        <option value=1> EXTERNO</option>
+                                        <option value=2> INTERNO</option>
+                                        <option value=3> SOTANO</option>
+                                        <option value=4> AZOTEA</option>
+                                    </select>
+                                    <br />
+                                    <button role="button" class="btn btn-primary btn-sm" ng-click="actualizarUbicacionMedidor(pic)"><i class="fa fa-save fa-lg"></i> Actualizar </button>
+                                </div>
+                            </li>*@
+                            <li class="list-group-item">
+                                <a style="cursor:pointer;">
+                                    <img ng-src="{{pic.fotourl}}" style="cursor:pointer !important" class="img-rounded" ng-click="verDetalle(pic,$index);">
+                                </a>
+                                <span class="label label-primary ">{{$index + 1}}</span>
+                            </li>
+                        </ul>
+
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <div id="modal_suministro" class="modal fade" role="dialog" tabindex="-1" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog  modal_dsige " style="width:500px;">
+            <div class="panel panel-oscuro">
+                <div class="panel-heading">
+                    <h6 class="modal-title"><i class="fa fa-cloud-upload"></i> Importar Suministros</h6>
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+                            <form>
+                                <input id="id_fileSum" type="file" class="filestyle" file-model="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" data-placeholder="Ningun Archivo Seleccionado" data-buttonname="btn-primary" data-size="sm" data-buttonbefore="true" data-buttontext="  Seleccionar Archivo..">
+                            </form>
+                        </div>
+                    </div>
+                    <br />
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12  col-lg-12 " style="text-align:center">
+                            <button id="btn_verSum" type="button" class="btn btn-primary btn-sm" ng-click="uploadFile_suministro()"><i class="fa fa-upload"></i> Subir</button>
+                            <button id="btn_nuevaSum" type="button" class="btn btn-primary btn-sm" ng-click="nuevaimportacion_Suministro();"><i class="fa fa-file-excel-o"></i> Nueva Importacion</button>
+                            <button id="btnFomato" type="button" class="btn btn-success btn-sm" ng-click="formatos();"><i class="fa fa-file-excel-o"></i> Formato</button>
+                        </div>
+                    </div>
+                    <hr style="margin-top: 5px; " />
+
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12 col-lg-12">
+                            <div class="form-group">
+                                <table id="tbl_alertas" class="table table-condensed table-bordered table-responsive" cellspacing="0" style="font-family: tahoma;margin-bottom: 0px; font-size: 10px;">
+                                    <thead style="background:#F0F3F5;">
+                                        <tr>
+                                            <th>#</th>
+                                            <th style="text-align:center">CANTIDAD DE SUMINISTROS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="font-family: tahoma; font-size: 9px;">
+                                        <tr ng-repeat="lista in Lista_agrupadoSuministro">
+                                            <td>{{$index + 1}}</td>
+                                            <td class="text-right">{{lista.cantidad}}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-footer">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Mantenimiento" style="float: right;">
+                                <button id="btn_cancel" role="button" class="btn btn-default" ng-click="cerrarModalSuministros()"><i class="fa fa-close fa-lg"></i> Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+</div>
